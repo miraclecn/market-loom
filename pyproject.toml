@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-loom"
+version = "0.1.0"
+description = "Local A-share market data weaving, DuckDB research source construction, and data quality auditing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "duckdb",
+    "pandas",
+    "numpy",
+]
+
+[project.optional-dependencies]
+providers = [
+    "akshare",
+    "baostock",
+    "tushare",
+]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+market-loom = "market_loom.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
