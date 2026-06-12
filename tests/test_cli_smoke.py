@@ -62,12 +62,12 @@ def test_cli_version_runs_without_old_names():
     assert "alpha" not in result.stdout.lower()
 
 
-def test_unmigrated_command_returns_clear_json_error():
-    result = _run_cli("sync", "--dry-run")
+def test_later_phase_command_returns_clear_json_error():
+    result = _run_cli("build-research-source-db")
 
     assert result.returncode == 2
     payload = json.loads(result.stdout)
-    assert payload["command"] == "sync"
+    assert payload["command"] == "build-research-source-db"
     assert payload["error"] == "Command unavailable in this migration phase"
-    assert payload["available_after"] == "Phase 3"
+    assert payload["available_after"] == "Phase 4"
     assert "ModuleNotFoundError" not in result.stderr

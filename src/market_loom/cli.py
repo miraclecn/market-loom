@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 from datetime import date
 import json
+from pathlib import Path
+import sys
 from typing import Final
 
 from market_loom import __version__
@@ -60,6 +63,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command == "init":
+        return _run_init(args)
+    if args.command == "sync":
+        return _run_sync(args)
+    if args.command == "audit-data":
+        return _run_audit_data(args)
     return _command_unavailable(args.command)
 
 
@@ -200,6 +209,83 @@ def _command_unavailable(command: str) -> int:
         }
     )
     return 2
+
+
+def _run_init(args: argparse.Namespace) -> int:
+    from market_loom.data_ingest.init_workspace import init_workspace
+
+    report = init_workspace(Path(args.workspace))
+    _dump_json(
+        {
+            "workspace": str(report.workspace),
+            "actions": [
+                {"path": str(action.path), "action": action.action}
+                for action in report.actions
+            ],
+        }
+    )
+    return 0
+
+
+def _run_sync(args: argparse.Namespace) -> int:
+    from market_loom.data_ingest.adapters.akshare_adapter import AKShareAdapter
+    from market_loom.data_ingest.adapters.baostock_adapter import BaostockAdapter
+    from market_loom.data_ingest.adapters.tushare_adapter import TushareAdapter
+    from market_loom.data_ingest.config_models import load_data_sources_config
+    from market_loom.data_ingest.orchestrator import sync
+
+    config_path = Path(args.config)
+    if not config_path.exists():
+        _dump_json({"error": f"Config not found: {config_path}. Run 'market-loom init' first."})
+        return 2
+
+    config = load_data_sources_config(config_path)
+    adapter_map: dict[str, object] = {}
+    if config.adapters.get("tushare") and config.adapters["tushare"].enabled:
+        try:
+            adapter_map["tushare"] = TushareAdapter()
+        except Exception as exc:  # adapter packages and credentials are optional at runtime
+            print(f"[WARN] Could not initialise TushareAdapter: {exc}", file=sys.stderr)
+    if config.adapters.get("akshare") and config.adapters["akshare"].enabled:
+        try:
+            adapter_map["akshare"] = AKShareAdapter()
+        except Exception as exc:
+            print(f"[WARN] Could not initialise AKShareAdapter: {exc}", file=sys.stderr)
+    if config.adapters.get("baostock") and config.adapters["baostock"].enabled:
+        try:
+            adapter_map["baostock"] = BaostockAdapter()
+        except Exception as exc:
+            print(f"[WARN] Could not initialise BaostockAdapter: {exc}", file=sys.stderr)
+
+    report = sync(
+        raw_db_path=Path(args.raw_db),
+        config=config,
+        adapter_map=adapter_map,
+        only=set(args.only.split(",")) if args.only else None,
+        reset=set(args.reset.split(",")) if args.reset else None,
+        since=args.since or None,
+        until=args.until or None,
+        dry_run=args.dry_run,
+    )
+    _dump_json(
+        {
+            "raw_db_path": report.raw_db_path,
+            "started_at": report.started_at,
+            "finished_at": report.finished_at,
+            "success_count": report.success_count(),
+            "failed_count": report.failed_count(),
+            "results": [asdict(result) for result in report.results],
+        }
+    )
+    return 0
+
+
+def _run_audit_data(args: argparse.Namespace) -> int:
+    from market_loom.data_ingest.audit import run_audit
+
+    report = run_audit(raw_db_path=Path(args.raw_db), out_dir=Path(args.out_dir))
+    _dump_json(asdict(report))
+    return 1 if report.overall_status == "blocking_failure" else 0
 
 
 def _dump_json(payload: object) -> None:

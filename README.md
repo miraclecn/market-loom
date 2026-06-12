@@ -36,7 +36,7 @@ python -m pip install -e ".[providers]"
 market-loom --help
 ```
 
-The Phase 1 CLI is intentionally minimal. Data ingestion and DuckDB build commands will be migrated in later phases.
+The current CLI includes local workspace initialization, ingestion dry runs, raw data sync wiring, and raw data audit wiring. Research-source construction, contract checks, export, and dashboard commands are exposed but remain unavailable until their backing modules are migrated.
 
 ## Development
 
@@ -49,4 +49,3 @@ python -m compileall src
 ## License
 
 Market Loom is licensed under Apache-2.0. See [LICENSE](LICENSE).
-
