@@ -63,11 +63,11 @@ def test_cli_version_runs_without_old_names():
 
 
 def test_later_phase_command_returns_clear_json_error():
-    result = _run_cli("build-research-source-db")
+    result = _run_cli("check-research-source-contract")
 
     assert result.returncode == 2
     payload = json.loads(result.stdout)
-    assert payload["command"] == "build-research-source-db"
+    assert payload["command"] == "check-research-source-contract"
     assert payload["error"] == "Command unavailable in this migration phase"
-    assert payload["available_after"] == "Phase 4"
+    assert payload["available_after"] == "Phase 5"
     assert "ModuleNotFoundError" not in result.stderr
