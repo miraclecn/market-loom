@@ -62,12 +62,9 @@ def test_cli_version_runs_without_old_names():
     assert "alpha" not in result.stdout.lower()
 
 
-def test_later_phase_command_returns_clear_json_error():
+def test_contract_command_is_wired_and_reports_missing_default_db():
     result = _run_cli("check-research-source-contract")
 
-    assert result.returncode == 2
-    payload = json.loads(result.stdout)
-    assert payload["command"] == "check-research-source-contract"
-    assert payload["error"] == "Command unavailable in this migration phase"
-    assert payload["available_after"] == "Phase 5"
+    assert result.returncode == 1
+    assert "database does not exist" in result.stderr
     assert "ModuleNotFoundError" not in result.stderr

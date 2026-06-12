@@ -79,6 +79,12 @@ def main(argv: list[str] | None = None) -> int:
         return _run_export_dashboard(args)
     if args.command == "serve":
         return _run_serve(args)
+    if args.command == "audit-market-data-quality":
+        return _run_audit_market_data_quality(args)
+    if args.command == "check-research-source-contract":
+        return _run_check_research_source_contract(args)
+    if args.command == "export-normalized-bars":
+        return _run_export_normalized_bars(args)
     return _command_unavailable(args.command)
 
 
@@ -161,6 +167,7 @@ def _add_market_data_quality_command(
     command.add_argument("--fail-on-high-severity", action="store_true")
     command.add_argument("--max-unresolved-adj-factor-jump", type=int, default=None)
     command.add_argument("--max-missing-limit", type=int, default=None)
+    command.add_argument("--output-dir", default="")
 
 
 def _add_research_source_contract_command(
@@ -362,6 +369,112 @@ def _run_serve(args: argparse.Namespace) -> int:
     print(f"Serving Market Loom at http://{args.host}:{args.port}", file=sys.stderr)
     serve_dashboard(Path(args.db), host=args.host, port=args.port)
     return 0
+
+
+def _run_audit_market_data_quality(args: argparse.Namespace) -> int:
+    from market_loom.market_data_quality import write_market_data_quality_audit
+
+    output_path = (
+        Path(args.output_dir) / "market_data_quality.json"
+        if args.output_dir
+        else Path(args.output)
+    )
+    report = write_market_data_quality_audit(
+        source_db=Path(args.source_db),
+        output_path=output_path,
+        min_official_ratio=args.min_official_ratio,
+        fail_on_missing_limit=args.fail_on_missing_limit,
+        fail_on_high_severity=args.fail_on_high_severity,
+        max_unresolved_adj_factor_jump=args.max_unresolved_adj_factor_jump,
+        max_missing_limit=args.max_missing_limit,
+    )
+    if args.output_dir:
+        _write_market_data_quality_csvs(Path(args.source_db), Path(args.output_dir))
+        report["output_dir"] = str(Path(args.output_dir))
+    _dump_json(report)
+    return 0 if report["ok"] else 1
+
+
+def _run_check_research_source_contract(args: argparse.Namespace) -> int:
+    from market_loom.research_source_contract import (
+        check_research_source_contract,
+        result_to_dict,
+    )
+
+    result = check_research_source_contract(Path(args.db))
+    _dump_json(result_to_dict(result))
+    return 0 if result.ok else 1
+
+
+def _run_export_normalized_bars(args: argparse.Namespace) -> int:
+    import duckdb
+
+    source_db = Path(args.db).expanduser().resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    format_name = args.format.lower()
+    file_name = f"stock_bar_normalized_daily.{'parquet' if format_name == 'parquet' else 'csv'}"
+    output_path = output_dir / file_name
+    escaped_output_path = str(output_path).replace("'", "''")
+    conn = duckdb.connect(str(source_db), read_only=True)
+    try:
+        if format_name == "parquet":
+            conn.execute(f"COPY stock_bar_normalized_daily TO '{escaped_output_path}' (FORMAT PARQUET)")
+        else:
+            conn.execute(f"COPY stock_bar_normalized_daily TO '{escaped_output_path}' (HEADER, DELIMITER ',')")
+    finally:
+        conn.close()
+    _dump_json({"db": str(source_db), "output_path": str(output_path), "format": format_name})
+    return 0
+
+
+def _write_market_data_quality_csvs(source_db: Path, output_dir: Path) -> None:
+    import duckdb
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    conn = duckdb.connect(str(Path(source_db).expanduser().resolve()), read_only=True)
+    try:
+        _copy_query_to_csv(
+            conn,
+            """
+            SELECT DISTINCT trade_date, issue_type, issue_severity
+            FROM data_quality_usability_flags
+            WHERE issue_type = 'INCOMPLETE_TRADING_DATE'
+            ORDER BY trade_date, issue_type
+            """,
+            output_dir / "bad_dates.csv",
+        )
+        _copy_query_to_csv(
+            conn,
+            """
+            SELECT DISTINCT code, issue_type, issue_severity
+            FROM data_quality_usability_flags
+            WHERE issue_type IN (
+                'MISSING_LIMIT',
+                'UNRESOLVED_ADJ_FACTOR_JUMP',
+                'MISSING_INDUSTRY_CODE'
+            )
+            ORDER BY code, issue_type
+            """,
+            output_dir / "bad_symbols.csv",
+        )
+        _copy_query_to_csv(
+            conn,
+            """
+            SELECT *
+            FROM data_quality_usability_flags
+            WHERE execution_restricted
+            ORDER BY trade_date, code, issue_type
+            """,
+            output_dir / "execution_restricted.csv",
+        )
+    finally:
+        conn.close()
+
+
+def _copy_query_to_csv(conn: object, query: str, output_path: Path) -> None:
+    escaped_path = str(output_path).replace("'", "''")
+    conn.execute(f"COPY ({query}) TO '{escaped_path}' (HEADER, DELIMITER ',')")
 
 
 def _parse_benchmark_reference(value: str) -> "BenchmarkReferenceDefinition":
