@@ -36,7 +36,7 @@ python -m pip install -e ".[providers]"
 market-loom --help
 ```
 
-The current CLI includes local workspace initialization, ingestion dry runs, raw data sync wiring, raw data audit wiring, research-source DuckDB construction, reference staging, database inspection, dashboard export, and dashboard serving. Contract checks and quality-audit commands are exposed but remain unavailable until their backing modules are migrated.
+The current CLI includes local workspace initialization, ingestion dry runs, raw data sync wiring, raw data audit wiring, research-source DuckDB construction, reference staging, database inspection, contract checks, market-data quality audits, normalized bar export, dashboard export, and dashboard serving.
 
 ## Development
 
