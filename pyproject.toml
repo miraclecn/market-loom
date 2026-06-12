@@ -34,6 +34,8 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"market_loom.data_ingest.templates" = [".env.template", "*.template"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
