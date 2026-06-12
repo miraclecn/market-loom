@@ -69,6 +69,16 @@ def main(argv: list[str] | None = None) -> int:
         return _run_sync(args)
     if args.command == "audit-data":
         return _run_audit_data(args)
+    if args.command == "build-reference-staging-db":
+        return _run_build_reference_staging_db(args)
+    if args.command == "build-research-source-db":
+        return _run_build_research_source_db(args)
+    if args.command == "inspect-db":
+        return _run_inspect_db(args)
+    if args.command == "export-dashboard":
+        return _run_export_dashboard(args)
+    if args.command == "serve":
+        return _run_serve(args)
     return _command_unavailable(args.command)
 
 
@@ -286,6 +296,87 @@ def _run_audit_data(args: argparse.Namespace) -> int:
     report = run_audit(raw_db_path=Path(args.raw_db), out_dir=Path(args.out_dir))
     _dump_json(asdict(report))
     return 1 if report.overall_status == "blocking_failure" else 0
+
+
+def _run_build_reference_staging_db(args: argparse.Namespace) -> int:
+    from market_loom.reference_data_staging import (
+        BenchmarkReferenceDefinition,
+        build_tushare_reference_db,
+    )
+
+    benchmarks = [
+        _parse_benchmark_reference(value)
+        for value in (args.benchmark or ["CSI 800=000906.SH"])
+    ]
+    result = build_tushare_reference_db(
+        target_db=Path(args.target_db),
+        benchmarks=benchmarks,
+        start_date=args.start_date,
+        end_date=args.end_date or date.today().strftime("%Y%m%d"),
+        token=args.token or None,
+        industry_levels=tuple(args.industry_level or ["L1", "L2", "L3"]),
+        index_weight_window_months=args.index_weight_window_months,
+        stage_market_events=args.stage_market_events,
+        market_event_start_date=args.market_event_start_date or None,
+        market_event_end_date=args.market_event_end_date or None,
+        market_event_page_size=args.market_event_page_size,
+        market_event_request_interval_seconds=args.market_event_request_interval_seconds,
+    )
+    _dump_json(result)
+    return 0
+
+
+def _run_build_research_source_db(args: argparse.Namespace) -> int:
+    from market_loom.market_data_bootstrap import build_research_source_db
+
+    _dump_json(
+        build_research_source_db(
+            source_db=Path(args.source_db),
+            target_db=Path(args.target_db),
+            supplemental_db=Path(args.supplemental_db) if args.supplemental_db else None,
+        )
+    )
+    return 0
+
+
+def _run_inspect_db(args: argparse.Namespace) -> int:
+    from market_loom.db_summary import summarize_duckdb
+
+    _dump_json(summarize_duckdb(Path(args.db)))
+    return 0
+
+
+def _run_export_dashboard(args: argparse.Namespace) -> int:
+    from market_loom.dashboard import write_dashboard
+    from market_loom.db_summary import summarize_duckdb
+
+    summary = summarize_duckdb(Path(args.db))
+    output_path = write_dashboard(summary, Path(args.out))
+    _dump_json({"database_path": summary["database_path"], "output_path": str(output_path)})
+    return 0
+
+
+def _run_serve(args: argparse.Namespace) -> int:
+    from market_loom.dashboard import serve_dashboard
+
+    print(f"Serving Market Loom at http://{args.host}:{args.port}", file=sys.stderr)
+    serve_dashboard(Path(args.db), host=args.host, port=args.port)
+    return 0
+
+
+def _parse_benchmark_reference(value: str) -> "BenchmarkReferenceDefinition":
+    from market_loom.reference_data_staging import BenchmarkReferenceDefinition
+
+    benchmark_id, separator, index_code = value.partition("=")
+    if not separator or not benchmark_id.strip() or not index_code.strip():
+        raise ValueError(
+            "Benchmark references must use '<benchmark_id>=<index_code>', "
+            f"got: {value}"
+        )
+    return BenchmarkReferenceDefinition(
+        benchmark_id=benchmark_id.strip(),
+        index_code=index_code.strip(),
+    )
 
 
 def _dump_json(payload: object) -> None:
