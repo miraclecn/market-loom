@@ -38,6 +38,19 @@ market-loom --help
 
 The current CLI includes local workspace initialization, ingestion dry runs, raw data sync wiring, raw data audit wiring, research-source DuckDB construction, reference staging, database inspection, contract checks, market-data quality audits, normalized bar export, dashboard export, and dashboard serving.
 
+## Documentation
+
+- [Quickstart](docs/quickstart.md)
+- [Installation](docs/installation.md)
+- [Data sources](docs/data_sources.md)
+- [Provider setup](docs/provider_setup.md)
+- [Consumer contract](docs/consumer_contract.md)
+- [Research-source schema](docs/research_source_schema.md)
+- [Market-data quality](docs/market_data_quality.md)
+- [Dashboard](docs/dashboard.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Release checklist](docs/release_checklist.md)
+
 ## Development
 
 ```bash
