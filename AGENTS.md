@@ -13,3 +13,4 @@ alpha-data 仅作为只读参考源，个人使用、私有路径、真实凭证
 
 阶段记录
 - Phase 6: 使用 phase-6-test-migration 分支迁移合成测试夹具和回归测试，覆盖 normalized schema、prev_close、涨跌停价格基准、qfq fallback、行业 UNKNOWN/name fallback、单一行业层级、data_quality_usability_flags、research source contract、market data quality audit、CLI smoke；不得引入真实数据、凭证、网络访问、策略/回测/交易/模型训练内容。
+- Phase 7: 使用 phase-7-demo-fixture 分支添加 no-token demo fixture，生成 output/demo/raw.duckdb 与 output/demo/supplemental.duckdb，支持 build-research-source-db、check-research-source-contract、audit-market-data-quality、export-dashboard 端到端演示；输出文件由 gitignore 覆盖，不迁移真实数据、凭证、私有路径、策略/回测/交易/模型训练内容。
