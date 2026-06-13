@@ -4,6 +4,7 @@ All notable changes to Market Loom will be documented in this file.
 
 ## Unreleased
 
+- Migrate synthetic regression tests for research-source contracts, normalized bar semantics, quality flags, and CLI smoke coverage.
 - Migrate research-source contract checks, market-data quality audits, and normalized bar export.
 - Migrate research-source construction, reference staging, database summary, and dashboard serving modules.
 - Migrate the reusable data ingestion layer and enable `init`, `sync`, and `audit-data` CLI commands.
