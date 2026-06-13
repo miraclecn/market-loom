@@ -4,6 +4,7 @@ All notable changes to Market Loom will be documented in this file.
 
 ## Unreleased
 
+- Add GitHub Actions CI for Python 3.11 and 3.12 with tests, CLI, compile, and no-token demo smoke checks.
 - Add public documentation for quickstart, installation, data sources, provider setup, consumer contracts, schemas, quality audits, dashboards, troubleshooting, and release checks.
 - Add a no-token demo fixture for end-to-end synthetic Market Loom runs.
 - Migrate synthetic regression tests for research-source contracts, normalized bar semantics, quality flags, and CLI smoke coverage.

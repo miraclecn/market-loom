@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Check CLI
+        run: market-loom --help
+
+      - name: Compile package
+        run: python -m compileall src
+
+      - name: Run no-token demo smoke test
+        run: |
+          python examples/demo_fixture/build_demo.py
+          market-loom build-research-source-db \
+            --source-db output/demo/raw.duckdb \
+            --target-db output/demo/research_source.duckdb \
+            --supplemental-db output/demo/supplemental.duckdb
+          market-loom check-research-source-contract \
+            --db output/demo/research_source.duckdb
+          market-loom audit-market-data-quality \
+            --db output/demo/research_source.duckdb
+          market-loom export-dashboard \
+            --db output/demo/research_source.duckdb \
+            --out output/demo/dashboard.html
